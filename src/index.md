@@ -619,9 +619,9 @@ function anim_line(index, scales, values, dimensions, context, next) {
   const lines = d3.select(el)
     .selectAll("path");
 
-  console.log(el);
 
   const height = context.ownerSVGElement.attributes.height.value;
+  const width = context.ownerSVGElement.attributes.width.value;
 
   const defs = d3.select(el)
       .append('defs')

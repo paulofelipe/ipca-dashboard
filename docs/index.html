@@ -674,7 +674,7 @@ resize((width) => plot_var_subitem(width, serie_sub, "reducao", 5))
 ))
 }});
 
-define({id: "9236b2f1", inputs: ["d3","width"], outputs: ["anim_hbar","anim_vbar","anim_heatmap","anim_line"], body: (d3,width) => {
+define({id: "fa2ae594", inputs: ["d3"], outputs: ["anim_hbar","anim_vbar","anim_heatmap","anim_line"], body: (d3) => {
 function anim_hbar(index, scales, values, dimensions, context, next) {
   const el = next(index, scales, values, dimensions, context);
 
@@ -761,9 +761,9 @@ function anim_line(index, scales, values, dimensions, context, next) {
   const lines = d3.select(el)
     .selectAll("path");
 
-  console.log(el);
 
   const height = context.ownerSVGElement.attributes.height.value;
+  const width = context.ownerSVGElement.attributes.width.value;
 
   const defs = d3.select(el)
       .append('defs')
@@ -888,7 +888,7 @@ define({id: "e3b0c442-1", body: () => {
     <observablehq-loading></observablehq-loading><!--:0d4bdfd3:-->
   </div>
 </div>
-<div class="observablehq observablehq--block"><!--:9236b2f1:--></div>
+<div class="observablehq observablehq--block"><!--:fa2ae594:--></div>
 <div class="observablehq observablehq--block"><!--:e3b0c442:--></div>
 <div class="observablehq observablehq--block"><!--:e3b0c442-1:--></div>
 <style>
@@ -961,6 +961,6 @@ define({id: "e3b0c442-1", body: () => {
 </style>
 </main>
 <footer id="observablehq-footer">
-<div>Built with <a href="https://observablehq.com/" target="_blank" rel="noopener noreferrer">Observable</a> on <a title="2024-07-18T21:14:32">Jul 18, 2024</a>.</div>
+<div>Built with <a href="https://observablehq.com/" target="_blank" rel="noopener noreferrer">Observable</a> on <a title="2024-07-18T21:29:14">Jul 18, 2024</a>.</div>
 </footer>
 </div>
