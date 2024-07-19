@@ -75,10 +75,17 @@ ipca_serie = ipca_serie[ipca_serie["data"] >= "2002-01-01"]
 # IPCA por grupo a partir de 2020
 ipca_grupo = ipca[ipca["agrupamento"] == "grupo"]
 
+# Ipca por subitem no último período
+ipca_subitem = ipca[ipca["agrupamento"] == "subitem"]
+ipca_subitem = ipca_subitem[ipca_subitem["data"] == ipca_subitem["data"].max()]
+
 sys.stdout.reconfigure(encoding="utf-8")
 with zipfile.ZipFile("ipca.zip", "w") as myzip:
     myzip.writestr("ipca_serie.csv", ipca_serie.to_csv(index=False, encoding="utf-8"))
     myzip.writestr("ipca_grupo.csv", ipca_grupo.to_csv(index=False, encoding="utf-8"))
+    myzip.writestr(
+        "ipca_subitem.csv", ipca_subitem.to_csv(index=False, encoding="utf-8")
+    )
 
 with open("ipca.zip", "rb") as f:
     sys.stdout.buffer.write(f.read())

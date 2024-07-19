@@ -1,7 +1,7 @@
 ---
 toc: false
 theme: [wide, air, alt]
-footer: "© 2024. Todos os direitos reservados."
+# footer: "© 2024. Todos os direitos reservados."
 ---
 
 ```js
@@ -10,6 +10,7 @@ import {locale, number_locale} from "./components/locale.js";
 
 <h1>IPCA</h1>
 <h2>Dashboard com informações detalhadas do Índice de Preços ao Consumidor Amplo (IPCA)</h2>
+<p>Os dados utilizados neste dashboard são originários do sistema SIDRA do IBGE e estão disponíveis para download <a href="https://sidra.ibge.gov.br/pesquisa/snipc/ipca/tabelas">aqui</a>.</p>
 
 ```js
 const ipca_zip = FileAttachment("data/ipca.zip").zip();
@@ -28,7 +29,16 @@ ipca_grupo.map(
     d.mes = d3.utcFormat("%B")(d.data);
   }
 )
+
+let ipca_subitem = await ipca_zip.then((zip) => zip.file("ipca_subitem.csv").csv({ typed: true }));
+ipca_subitem.map(
+  d => {
+    d.ano = +d3.utcFormat("%Y")(d.data);
+    d.mes = d3.utcFormat("%B")(d.data);
+  }
+)
 ```
+
 ```js
 const data_max = d3.max(await ipca_serie, d => d.data)
 const data_min = d3.utcMonth.offset(data_max, -11)
@@ -104,11 +114,12 @@ const comparacao_acum = aq.from(ipca_serie)
 ```js
 function plot_serie(width, serie) {
   const data_plot = ipca_serie.filter(d => d.variavel == serie);
+  const height = 250;
   const plot = Plot.plot({
       width,
       marginTop: 40,
       marginBottom: 40,
-      height: 250,
+      height: height,
       y: {
         label: "Variação (%)",
       },
@@ -143,29 +154,11 @@ function plot_serie(width, serie) {
               x: d => d3.utcFormat("%b/%Y")(d),
               y: (d) => number_locale.format(".2%")(d),
             }
-          }
+          },
+          render: anim_line
         })
       ]
     });
-
-    const lines = d3.select(plot)
-      .select('[aria-label="line"]')
-      .selectAll("path");
-
-    const defs = d3.select(plot)
-      .append('defs')
-      .append('clipPath')
-      .attr('id', 'clipEvol')
-      .append('rect')
-      .attr('height', 250)
-      .attr('width', 0);
-
-  lines
-    .attr('clip-path', `url(#clipEvol)`);
-
-  defs.transition()
-    .duration(1000)
-    .attr('width', 1000);
 
     return plot;
 }
@@ -216,26 +209,11 @@ function plot_comparacao_mes(width, serie) {
                 x: d => d3.utcFormat("%Y")(d),
                 y: (d) => number_locale.format(".2%")(d),
               }
-            }      
+            },
+            render: anim_vbar    
         })
       ]
     })
-
-    const yScale = plot.scale("y");
-
-    const bars = d3.select(plot)
-      .selectAll("[aria-label='bar']")
-      .selectAll("rect");
-
-    bars
-      .data(data_plot)
-      .attr("y", d => yScale.apply(0.0))
-      .attr("height", 0)
-      // .attr("height", d => height - yScale.apply(d.valor / 100))
-      .transition()
-      .attr("y", d => yScale.apply(Math.max(0, d.valor / 100)))
-      .attr("height", d => Math.abs(yScale.apply(0.0) - yScale.apply(d.valor / 100)))
-      .duration(1000);
 
     return plot;
 }
@@ -299,26 +277,12 @@ function plot_grupo(width, serie) {
                 y: d => d,
                 x: (d) => number_locale.format(".2%")(d)
               }
-            }       
+            },
+            render: anim_hbar       
           }
         )
       ]
     })
-
-    const xScale = plot.scale("x");
-
-    const bars = d3.select(plot)
-      .selectAll("[aria-label='bar']")
-      .selectAll("rect");
-
-    bars
-      .data(data_plot)
-      .attr("x", d => xScale.apply(0.0))
-      .attr("width", 0)
-    .transition()
-    .attr("x", d => xScale.apply(Math.min(0, d.valor / 100)))
-    .attr("width", d => Math.abs(xScale.apply(0.0) - xScale.apply(d.valor / 100)))
-    .duration(1000);
 
     return plot
 }
@@ -374,35 +338,317 @@ function plot_heatmap(width, serie) {
                   x: (d) => d3.utcFormat("%B/%Y")(d),
                   fill: (d) => number_locale.format(".2%")(d)
                 }
-              }
+              },
+              render: anim_heatmap
             }
           )
         ]
       })
 
-    const rects = d3.select(plot)
-      .selectAll("[aria-label='cell']")
-      .selectAll("rect");
-
-    rects
-      // style opacity 0
-      .style("opacity", 0)
-      .transition()
-      .duration(100)
-      .delay((d, i) => i * 1)
-      .style("opacity",1);
-
-    return plot;
+  return plot;
 }
 ```
 
+<div class="card">
+  <h2>Variação do IPCA por grupo</h2>
+  ${input_serie}
+</div>
 <div class="grid grid-cols-1">
   <div class="card grid-colspan-2">
     <h2>Evolução da variação do IPCA por grupo</h2>
-    ${input_serie}
     ${resize((width) => plot_heatmap(width, serie))}
   </div>
 </div>
+
+```js
+const input_serie_sub = Inputs.select(
+  series, {
+    label: "Série",
+    format: x => x.slice(7),
+    value: series[0],
+    width: 360
+  });
+const serie_sub = Generators.input(input_serie_sub);
+
+function plot_histograma(width, serie) {
+  const data_plot = aq.from(ipca_subitem)
+    .filter(aq.escape(d => d.variavel == serie))
+    .filter(d => d.regiao == "Brasil")
+    .orderby(["data", "categoria"])
+    .objects();
+
+  const rect_mark = Plot.rectY(
+    data_plot,
+    Plot.binX(
+      {y: "count"},
+      {
+        x: d => d.valor / 100,
+        fill: "var(--theme-foreground-focus)",
+        tip: {
+          format: {
+            x: d => number_locale.format(".2%")(d),          
+            // replace "--" for " - -"
+            y: d => d,
+          }
+        },
+        render: anim_vbar
+      }
+    )
+  );
+
+
+  const plot = Plot.plot({
+        width,
+        height: 250,        
+        marginBottom: 40,
+        x: {label: "Variação (%)", tickSize: 0, insetLeft: 36, tickFormat: number_locale.format(".2%")},
+        y: {label: "Frequência", tickSize: 0},
+        marks: [
+          Plot.gridY({
+            strokeDasharray: "5 5", // dashed
+            strokeOpacity: 1, // opaque
+            strokeWidth: 0.2
+          }),
+          Plot.axisY({
+            tickSize: 0, // don’t draw ticks
+            dx: 38, // offset right
+            dy: -6, // offset up
+            lineAnchor: "bottom", // draw labels above grid lines
+            tickFormat: (d) => number_locale.format(".0f")(d)
+          }),
+          rect_mark,
+        ]
+      })
+
+    // const yScale = plot.scale("y");
+
+    // const rects = d3.select(plot)
+    //   .selectAll("[aria-label='rect']")
+    //   .selectAll("rect");
+
+    // const rects_data = rects.data();
+    // rects._groups[0].forEach(
+    //   function(d, i) {
+    //     const height = d.attributes.height.value;
+    //     const y = d.attributes.y.value;
+    //     rects_data[i] = {
+    //       "height": +height,
+    //       "y": +y
+    //     };
+    //   }
+    // );
+
+
+    // // convert nodes in data
+    // rects
+    //   .data(rects_data)
+    //   .attr("height", 0)
+    //   .attr("y", d => yScale.apply(0))
+    //   .transition()
+    //   .duration(1000)
+    //   // # use original height
+    //   .attr("y", d => d.y)
+    //   .attr("height", d => d.height);
+
+    return plot;
+}
+
+function plot_var_subitem(width, serie, selecao, n) {
+
+  let data_plot = aq.from(ipca_subitem)
+    .filter(aq.escape(d => d.variavel == serie))
+    .filter(d => d.regiao == "Brasil")
+    .orderby("valor");
+  
+  if (selecao == "aumento") {
+    data_plot = data_plot.slice(-n)
+      .objects();
+  } 
+
+  if (selecao == "reducao") {
+    data_plot = data_plot.slice(0, n)
+      .objects();
+  }
+
+  const plot = Plot.plot({
+    width,
+    height: 250,
+    marginBottom: 40,
+    marginLeft: 120,
+    y: {label: "Subitem", tickSize: 0},
+    x: {label: "Variação (%)", tickSize: 0, tickFormat: number_locale.format(".2%")},
+    marks: [
+      Plot.axisY({
+        tickSize: 0, // don’t draw ticks
+        lineWidth: 10,
+      }),
+      Plot.gridX({
+        strokeDasharray: "5 5", // dashed
+        strokeOpacity: 1, // opaque
+        strokeWidth: 0.2
+      }),
+      Plot.barX(
+        data_plot,
+        {
+          y: "categoria",
+          x: d => d.valor / 100,
+          fill: selecao == "aumento" ? "var(--theme-foreground-focus)" : "#7e4a0b",
+          tip: {
+            format: {
+              x: d => number_locale.format(".2%")(d),
+              y: d => d.categoria
+            }
+          },
+          sort: {y: "x", reverse: selecao == "aumento"},
+          render: anim_hbar
+        }
+      )
+    ]
+  });
+
+  return plot;
+
+}
+
+```
+
+<div class="card">
+  <h2>Variação do IPCA por subitem</h2>
+  ${input_serie_sub}
+</div>
+<div class="grid grid-cols-3">
+  <div class="card">
+    <h2>Distruibuição da variação do IPCA por subitem</h2>    
+    ${resize((width) => plot_histograma(width, serie_sub))}
+  </div>
+  <div class="card">
+    <h2>Subitens com maiores aumentos</h2>
+    ${resize((width) => plot_var_subitem(width, serie_sub, "aumento", 5))}
+  </div>
+  <div class="card">
+    <h2>Subitens com maiores reduções</h2>
+    ${resize((width) => plot_var_subitem(width, serie_sub, "reducao", 5))}
+  </div>
+</div>
+
+
+```js
+function anim_hbar(index, scales, values, dimensions, context, next) {
+  const el = next(index, scales, values, dimensions, context);
+
+  const rects = d3.select(el)
+    .selectAll("rect");
+
+  const rects_data = rects.data();
+  rects._groups[0].forEach(
+    function(d, i) {
+      const x = d.attributes.x.value;
+      const width = d.attributes.width.value;
+      rects_data[i] = {
+        "width": +width,
+        "x": +x
+      };
+    }
+  );
+  
+  const xScale = scales["x"];
+  
+  rects
+    .data(rects_data)
+    .attr("x", d => xScale(0.0))
+    .attr("width", 0)
+    .transition()
+    .duration(1000)
+    .attr("x", d => Math.min(xScale(0.0), d.x))
+    .attr("width", d => d.width);
+
+  return el;
+}
+
+function anim_vbar(index, scales, values, dimensions, context, next) {
+  const el = next(index, scales, values, dimensions, context);
+
+  const rects = d3.select(el)
+    .selectAll("rect");
+
+  const rects_data = rects.data();
+  rects._groups[0].forEach(
+    function(d, i) {
+      const y = d.attributes.y.value;
+      const height = d.attributes.height.value;
+      rects_data[i] = {
+        "height": +height,
+        "y": +y
+      };
+    }
+  );
+  
+  const yScale = scales["y"];
+  
+  rects
+    .data(rects_data)
+    .attr("y", d => yScale(0.0))
+    .attr("height", 0)
+    .transition()
+    .duration(1000)
+    .attr("y", d => Math.min(yScale(0.0), d.y))
+    .attr("height", d => d.height);
+
+  return el;
+}
+
+function anim_heatmap(index, scales, values, dimensions, context, next) {
+  const el = next(index, scales, values, dimensions, context);
+
+  const rects = d3.select(el)
+    .selectAll("rect");
+
+  rects
+    .style("opacity", 0)
+    .transition()
+    .duration(100)
+    .delay((d, i) => i * 1)
+    .style("opacity", 1);
+
+  return el;
+}
+
+function anim_line(index, scales, values, dimensions, context, next) {
+  const el = next(index, scales, values, dimensions, context);
+
+  const lines = d3.select(el)
+    .selectAll("path");
+
+  console.log(el);
+
+  const height = context.ownerSVGElement.attributes.height.value;
+
+  const defs = d3.select(el)
+      .append('defs')
+      .append('clipPath')
+      .attr('id', 'clipEvol')
+      .append('rect')
+      .attr('height', height)
+      .attr('width', 0);
+
+  const xScale = scales["x"];
+
+  lines
+    .attr('clip-path', `url(#clipEvol)`);
+
+  defs.transition()
+    .duration(1000)
+    .attr('width', width);
+
+  return el;
+}
+```
+
+```js
+```
+
+```js
+```
 
 
 <style>

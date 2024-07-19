@@ -66,7 +66,7 @@
 import {define} from "./_observablehq/client.js";
 import {registerFile} from "./_observablehq/stdlib.js";
 
-registerFile("./data/ipca.zip", {"name":"./data/ipca.zip","mimeType":"application/zip","path":"./_file/data/ipca.e7ee9a1c.zip","lastModified":1720967108868});
+registerFile("./data/ipca.zip", {"name":"./data/ipca.zip","mimeType":"application/zip","path":"./_file/data/ipca.4f03791b.zip","lastModified":1721182302009});
 
 define({id: "4fb6b65a", outputs: ["locale","number_locale"], body: async () => {
 const {locale, number_locale} = await import("./_import/components/locale.aadda7be.js");
@@ -74,7 +74,7 @@ const {locale, number_locale} = await import("./_import/components/locale.aadda7
 return {locale,number_locale};
 }});
 
-define({id: "fcccd9d6", inputs: ["FileAttachment","d3"], outputs: ["ipca_zip","ipca_serie","ipca_grupo"], body: async (FileAttachment,d3) => {
+define({id: "6985dcd8", inputs: ["FileAttachment","d3"], outputs: ["ipca_zip","ipca_serie","ipca_grupo","ipca_subitem"], body: async (FileAttachment,d3) => {
 const ipca_zip = FileAttachment("./data/ipca.zip").zip();
 let ipca_serie = await ipca_zip.then((zip) => zip.file("ipca_serie.csv").csv({ typed: true }));
 ipca_serie.map(
@@ -91,7 +91,15 @@ ipca_grupo.map(
     d.mes = d3.utcFormat("%B")(d.data);
   }
 )
-return {ipca_zip,ipca_serie,ipca_grupo};
+
+let ipca_subitem = await ipca_zip.then((zip) => zip.file("ipca_subitem.csv").csv({ typed: true }));
+ipca_subitem.map(
+  d => {
+    d.ano = +d3.utcFormat("%Y")(d.data);
+    d.mes = d3.utcFormat("%B")(d.data);
+  }
+)
+return {ipca_zip,ipca_serie,ipca_grupo,ipca_subitem};
 }});
 
 define({id: "e312573b", inputs: ["d3","ipca_serie","aq"], outputs: ["data_max","data_min","ano_atual","mes_atual","var_mensal","var_acum_ano","var_acum_12m"], body: async (d3,ipca_serie,aq) => {
@@ -193,14 +201,15 @@ const comparacao_acum = aq.from(ipca_serie)
 return {comparacao_mes,comparacao_acum};
 }});
 
-define({id: "244d5bac", inputs: ["ipca_serie","Plot","d3","number_locale","aq","mes_atual"], outputs: ["plot_serie","plot_comparacao_mes"], body: (ipca_serie,Plot,d3,number_locale,aq,mes_atual) => {
+define({id: "4d25d951", inputs: ["ipca_serie","Plot","d3","number_locale","anim_line","aq","mes_atual","anim_vbar"], outputs: ["plot_serie","plot_comparacao_mes"], body: (ipca_serie,Plot,d3,number_locale,anim_line,aq,mes_atual,anim_vbar) => {
 function plot_serie(width, serie) {
   const data_plot = ipca_serie.filter(d => d.variavel == serie);
+  const height = 250;
   const plot = Plot.plot({
       width,
       marginTop: 40,
       marginBottom: 40,
-      height: 250,
+      height: height,
       y: {
         label: "Variação (%)",
       },
@@ -235,29 +244,11 @@ function plot_serie(width, serie) {
               x: d => d3.utcFormat("%b/%Y")(d),
               y: (d) => number_locale.format(".2%")(d),
             }
-          }
+          },
+          render: anim_line
         })
       ]
     });
-
-    const lines = d3.select(plot)
-      .select('[aria-label="line"]')
-      .selectAll("path");
-
-    const defs = d3.select(plot)
-      .append('defs')
-      .append('clipPath')
-      .attr('id', 'clipEvol')
-      .append('rect')
-      .attr('height', 250)
-      .attr('width', 0);
-
-  lines
-    .attr('clip-path', `url(#clipEvol)`);
-
-  defs.transition()
-    .duration(1000)
-    .attr('width', 1000);
 
     return plot;
 }
@@ -308,26 +299,11 @@ function plot_comparacao_mes(width, serie) {
                 x: d => d3.utcFormat("%Y")(d),
                 y: (d) => number_locale.format(".2%")(d),
               }
-            }      
+            },
+            render: anim_vbar    
         })
       ]
     })
-
-    const yScale = plot.scale("y");
-
-    const bars = d3.select(plot)
-      .selectAll("[aria-label='bar']")
-      .selectAll("rect");
-
-    bars
-      .data(data_plot)
-      .attr("y", d => yScale.apply(0.0))
-      .attr("height", 0)
-      // .attr("height", d => height - yScale.apply(d.valor / 100))
-      .transition()
-      .attr("y", d => yScale.apply(Math.max(0, d.valor / 100)))
-      .attr("height", d => Math.abs(yScale.apply(0.0) - yScale.apply(d.valor / 100)))
-      .duration(1000);
 
     return plot;
 }
@@ -370,7 +346,7 @@ resize((width) => plot_comparacao_mes(width, series[1]))
 ))
 }});
 
-define({id: "71029004", inputs: ["aq","ipca_grupo","mes_atual","ano_atual","Plot","number_locale","d3"], outputs: ["plot_grupo"], body: (aq,ipca_grupo,mes_atual,ano_atual,Plot,number_locale,d3) => {
+define({id: "30f614d9", inputs: ["aq","ipca_grupo","mes_atual","ano_atual","Plot","number_locale","anim_hbar"], outputs: ["plot_grupo"], body: (aq,ipca_grupo,mes_atual,ano_atual,Plot,number_locale,anim_hbar) => {
 function plot_grupo(width, serie) {
   const data_plot = aq.from(ipca_grupo)
     .filter(aq.escape(d => d.variavel == serie))
@@ -408,26 +384,12 @@ function plot_grupo(width, serie) {
                 y: d => d,
                 x: (d) => number_locale.format(".2%")(d)
               }
-            }       
+            },
+            render: anim_hbar       
           }
         )
       ]
     })
-
-    const xScale = plot.scale("x");
-
-    const bars = d3.select(plot)
-      .selectAll("[aria-label='bar']")
-      .selectAll("rect");
-
-    bars
-      .data(data_plot)
-      .attr("x", d => xScale.apply(0.0))
-      .attr("width", 0)
-    .transition()
-    .attr("x", d => xScale.apply(Math.min(0, d.valor / 100)))
-    .attr("width", d => Math.abs(xScale.apply(0.0) - xScale.apply(d.valor / 100)))
-    .duration(1000);
 
     return plot
 }
@@ -476,7 +438,7 @@ resize((width) => plot_grupo(width, series[2]))
 ))
 }});
 
-define({id: "c7dcabe5", inputs: ["aq","ipca_grupo","Plot","number_locale","d3"], outputs: ["plot_heatmap"], body: (aq,ipca_grupo,Plot,number_locale,d3) => {
+define({id: "9af8ad19", inputs: ["aq","ipca_grupo","Plot","number_locale","d3","anim_heatmap"], outputs: ["plot_heatmap"], body: (aq,ipca_grupo,Plot,number_locale,d3,anim_heatmap) => {
 function plot_heatmap(width, serie) {
   const data_plot = aq.from(ipca_grupo)
     .filter(aq.escape(d => d.variavel == serie))
@@ -511,25 +473,14 @@ function plot_heatmap(width, serie) {
                   x: (d) => d3.utcFormat("%B/%Y")(d),
                   fill: (d) => number_locale.format(".2%")(d)
                 }
-              }
+              },
+              render: anim_heatmap
             }
           )
         ]
       })
 
-    const rects = d3.select(plot)
-      .selectAll("[aria-label='cell']")
-      .selectAll("rect");
-
-    rects
-      // style opacity 0
-      .style("opacity", 0)
-      .transition()
-      .duration(100)
-      .delay((d, i) => i * 1)
-      .style("opacity",1);
-
-    return plot;
+  return plot;
 }
 return {plot_heatmap};
 }});
@@ -546,13 +497,312 @@ resize((width) => plot_heatmap(width, serie))
 ))
 }});
 
+define({id: "112e856b", inputs: ["Inputs","series","Generators","aq","ipca_subitem","Plot","number_locale","anim_vbar","anim_hbar"], outputs: ["input_serie_sub","serie_sub","plot_histograma","plot_var_subitem"], body: (Inputs,series,Generators,aq,ipca_subitem,Plot,number_locale,anim_vbar,anim_hbar) => {
+const input_serie_sub = Inputs.select(
+  series, {
+    label: "Série",
+    format: x => x.slice(7),
+    value: series[0],
+    width: 360
+  });
+const serie_sub = Generators.input(input_serie_sub);
+
+function plot_histograma(width, serie) {
+  const data_plot = aq.from(ipca_subitem)
+    .filter(aq.escape(d => d.variavel == serie))
+    .filter(d => d.regiao == "Brasil")
+    .orderby(["data", "categoria"])
+    .objects();
+
+  const rect_mark = Plot.rectY(
+    data_plot,
+    Plot.binX(
+      {y: "count"},
+      {
+        x: d => d.valor / 100,
+        fill: "var(--theme-foreground-focus)",
+        tip: {
+          format: {
+            x: d => number_locale.format(".2%")(d),          
+            // replace "--" for " - -"
+            y: d => d,
+          }
+        },
+        render: anim_vbar
+      }
+    )
+  );
+
+
+  const plot = Plot.plot({
+        width,
+        height: 250,        
+        marginBottom: 40,
+        x: {label: "Variação (%)", tickSize: 0, insetLeft: 36, tickFormat: number_locale.format(".2%")},
+        y: {label: "Frequência", tickSize: 0},
+        marks: [
+          Plot.gridY({
+            strokeDasharray: "5 5", // dashed
+            strokeOpacity: 1, // opaque
+            strokeWidth: 0.2
+          }),
+          Plot.axisY({
+            tickSize: 0, // don’t draw ticks
+            dx: 38, // offset right
+            dy: -6, // offset up
+            lineAnchor: "bottom", // draw labels above grid lines
+            tickFormat: (d) => number_locale.format(".0f")(d)
+          }),
+          rect_mark,
+        ]
+      })
+
+    // const yScale = plot.scale("y");
+
+    // const rects = d3.select(plot)
+    //   .selectAll("[aria-label='rect']")
+    //   .selectAll("rect");
+
+    // const rects_data = rects.data();
+    // rects._groups[0].forEach(
+    //   function(d, i) {
+    //     const height = d.attributes.height.value;
+    //     const y = d.attributes.y.value;
+    //     rects_data[i] = {
+    //       "height": +height,
+    //       "y": +y
+    //     };
+    //   }
+    // );
+
+
+    // // convert nodes in data
+    // rects
+    //   .data(rects_data)
+    //   .attr("height", 0)
+    //   .attr("y", d => yScale.apply(0))
+    //   .transition()
+    //   .duration(1000)
+    //   // # use original height
+    //   .attr("y", d => d.y)
+    //   .attr("height", d => d.height);
+
+    return plot;
+}
+
+function plot_var_subitem(width, serie, selecao, n) {
+
+  let data_plot = aq.from(ipca_subitem)
+    .filter(aq.escape(d => d.variavel == serie))
+    .filter(d => d.regiao == "Brasil")
+    .orderby("valor");
+  
+  if (selecao == "aumento") {
+    data_plot = data_plot.slice(-n)
+      .objects();
+  } 
+
+  if (selecao == "reducao") {
+    data_plot = data_plot.slice(0, n)
+      .objects();
+  }
+
+  const plot = Plot.plot({
+    width,
+    height: 250,
+    marginBottom: 40,
+    marginLeft: 120,
+    y: {label: "Subitem", tickSize: 0},
+    x: {label: "Variação (%)", tickSize: 0, tickFormat: number_locale.format(".2%")},
+    marks: [
+      Plot.axisY({
+        tickSize: 0, // don’t draw ticks
+        lineWidth: 10,
+      }),
+      Plot.gridX({
+        strokeDasharray: "5 5", // dashed
+        strokeOpacity: 1, // opaque
+        strokeWidth: 0.2
+      }),
+      Plot.barX(
+        data_plot,
+        {
+          y: "categoria",
+          x: d => d.valor / 100,
+          fill: selecao == "aumento" ? "var(--theme-foreground-focus)" : "#7e4a0b",
+          tip: {
+            format: {
+              x: d => number_locale.format(".2%")(d),
+              y: d => d.categoria
+            }
+          },
+          sort: {y: "x", reverse: selecao == "aumento"},
+          render: anim_hbar
+        }
+      )
+    ]
+  });
+
+  return plot;
+
+}
+
+return {input_serie_sub,serie_sub,plot_histograma,plot_var_subitem};
+}});
+
+define({id: "5108297d", mode: "inline", inputs: ["input_serie_sub","display"], body: async (input_serie_sub,display) => {
+display(await(
+input_serie_sub
+))
+}});
+
+define({id: "2a27c67e", mode: "inline", inputs: ["resize","plot_histograma","serie_sub","display"], body: async (resize,plot_histograma,serie_sub,display) => {
+display(await(
+resize((width) => plot_histograma(width, serie_sub))
+))
+}});
+
+define({id: "34053888", mode: "inline", inputs: ["resize","plot_var_subitem","serie_sub","display"], body: async (resize,plot_var_subitem,serie_sub,display) => {
+display(await(
+resize((width) => plot_var_subitem(width, serie_sub, "aumento", 5))
+))
+}});
+
+define({id: "0d4bdfd3", mode: "inline", inputs: ["resize","plot_var_subitem","serie_sub","display"], body: async (resize,plot_var_subitem,serie_sub,display) => {
+display(await(
+resize((width) => plot_var_subitem(width, serie_sub, "reducao", 5))
+))
+}});
+
+define({id: "9236b2f1", inputs: ["d3","width"], outputs: ["anim_hbar","anim_vbar","anim_heatmap","anim_line"], body: (d3,width) => {
+function anim_hbar(index, scales, values, dimensions, context, next) {
+  const el = next(index, scales, values, dimensions, context);
+
+  const rects = d3.select(el)
+    .selectAll("rect");
+
+  const rects_data = rects.data();
+  rects._groups[0].forEach(
+    function(d, i) {
+      const x = d.attributes.x.value;
+      const width = d.attributes.width.value;
+      rects_data[i] = {
+        "width": +width,
+        "x": +x
+      };
+    }
+  );
+  
+  const xScale = scales["x"];
+  
+  rects
+    .data(rects_data)
+    .attr("x", d => xScale(0.0))
+    .attr("width", 0)
+    .transition()
+    .duration(1000)
+    .attr("x", d => Math.min(xScale(0.0), d.x))
+    .attr("width", d => d.width);
+
+  return el;
+}
+
+function anim_vbar(index, scales, values, dimensions, context, next) {
+  const el = next(index, scales, values, dimensions, context);
+
+  const rects = d3.select(el)
+    .selectAll("rect");
+
+  const rects_data = rects.data();
+  rects._groups[0].forEach(
+    function(d, i) {
+      const y = d.attributes.y.value;
+      const height = d.attributes.height.value;
+      rects_data[i] = {
+        "height": +height,
+        "y": +y
+      };
+    }
+  );
+  
+  const yScale = scales["y"];
+  
+  rects
+    .data(rects_data)
+    .attr("y", d => yScale(0.0))
+    .attr("height", 0)
+    .transition()
+    .duration(1000)
+    .attr("y", d => Math.min(yScale(0.0), d.y))
+    .attr("height", d => d.height);
+
+  return el;
+}
+
+function anim_heatmap(index, scales, values, dimensions, context, next) {
+  const el = next(index, scales, values, dimensions, context);
+
+  const rects = d3.select(el)
+    .selectAll("rect");
+
+  rects
+    .style("opacity", 0)
+    .transition()
+    .duration(100)
+    .delay((d, i) => i * 1)
+    .style("opacity", 1);
+
+  return el;
+}
+
+function anim_line(index, scales, values, dimensions, context, next) {
+  const el = next(index, scales, values, dimensions, context);
+
+  const lines = d3.select(el)
+    .selectAll("path");
+
+  console.log(el);
+
+  const height = context.ownerSVGElement.attributes.height.value;
+
+  const defs = d3.select(el)
+      .append('defs')
+      .append('clipPath')
+      .attr('id', 'clipEvol')
+      .append('rect')
+      .attr('height', height)
+      .attr('width', 0);
+
+  const xScale = scales["x"];
+
+  lines
+    .attr('clip-path', `url(#clipEvol)`);
+
+  defs.transition()
+    .duration(1000)
+    .attr('width', width);
+
+  return el;
+}
+return {anim_hbar,anim_vbar,anim_heatmap,anim_line};
+}});
+
+define({id: "e3b0c442", body: () => {
+
+}});
+
+define({id: "e3b0c442-1", body: () => {
+
+}});
+
 </script>
 <div id="observablehq-center">
 <main id="observablehq-main" class="observablehq">
 <div class="observablehq observablehq--block"><!--:4fb6b65a:--></div>
 <h1>IPCA</h1>
 <h2>Dashboard com informações detalhadas do Índice de Preços ao Consumidor Amplo (IPCA)</h2>
-<div class="observablehq observablehq--block"><!--:fcccd9d6:--></div>
+<p>Os dados utilizados neste dashboard são originários do sistema SIDRA do IBGE e estão disponíveis para download <a href="https://sidra.ibge.gov.br/pesquisa/snipc/ipca/tabelas" target="_blank" rel="noopener noreferrer">aqui</a>.</p>
+<div class="observablehq observablehq--block"><!--:6985dcd8:--></div>
 <div class="observablehq observablehq--block"><!--:e312573b:--></div>
 <div class="observablehq observablehq--block"><!--:ecbe3c53:--></div>
 <div class="grid grid-cols-3">
@@ -574,7 +824,7 @@ resize((width) => plot_heatmap(width, serie))
 </div>
 <div class="observablehq observablehq--block"><!--:864e3729:--></div>
 <div class="observablehq observablehq--block"><!--:a81b4d46:--></div>
-<div class="observablehq observablehq--block"><!--:244d5bac:--></div>
+<div class="observablehq observablehq--block"><!--:4d25d951:--></div>
 <div class="grid grid-cols-2">
   <div class="card">
     <h2>Evolução do variação mensal</h2>
@@ -593,7 +843,7 @@ resize((width) => plot_heatmap(width, serie))
     <observablehq-loading></observablehq-loading><!--:074f6f8a:-->
   </div>
 </div>
-<div class="observablehq observablehq--block"><!--:71029004:--></div>
+<div class="observablehq observablehq--block"><!--:30f614d9:--></div>
 <div class="grid grid-cols-3">
   <div class="card">
     <h2> Variação do IPCA por grupo - <observablehq-loading></observablehq-loading><!--:4a097ad1-3:--></h2>
@@ -608,14 +858,39 @@ resize((width) => plot_heatmap(width, serie))
     <observablehq-loading></observablehq-loading><!--:349be5a3:-->
   </div>  
 </div>
-<div class="observablehq observablehq--block"><!--:c7dcabe5:--></div>
+<div class="observablehq observablehq--block"><!--:9af8ad19:--></div>
+<div class="card">
+  <h2>Variação do IPCA por grupo</h2>
+  <observablehq-loading></observablehq-loading><!--:2e723895:-->
+</div>
 <div class="grid grid-cols-1">
   <div class="card grid-colspan-2">
     <h2>Evolução da variação do IPCA por grupo</h2>
-    <observablehq-loading></observablehq-loading><!--:2e723895:-->
     <observablehq-loading></observablehq-loading><!--:44061b79:-->
   </div>
 </div>
+<div class="observablehq observablehq--block"><!--:112e856b:--></div>
+<div class="card">
+  <h2>Variação do IPCA por subitem</h2>
+  <observablehq-loading></observablehq-loading><!--:5108297d:-->
+</div>
+<div class="grid grid-cols-3">
+  <div class="card">
+    <h2>Distruibuição da variação do IPCA por subitem</h2>    
+    <observablehq-loading></observablehq-loading><!--:2a27c67e:-->
+  </div>
+  <div class="card">
+    <h2>Subitens com maiores aumentos</h2>
+    <observablehq-loading></observablehq-loading><!--:34053888:-->
+  </div>
+  <div class="card">
+    <h2>Subitens com maiores reduções</h2>
+    <observablehq-loading></observablehq-loading><!--:0d4bdfd3:-->
+  </div>
+</div>
+<div class="observablehq observablehq--block"><!--:9236b2f1:--></div>
+<div class="observablehq observablehq--block"><!--:e3b0c442:--></div>
+<div class="observablehq observablehq--block"><!--:e3b0c442-1:--></div>
 <style>
 
 :root {
@@ -686,6 +961,6 @@ resize((width) => plot_heatmap(width, serie))
 </style>
 </main>
 <footer id="observablehq-footer">
-<div>© 2024. Todos os direitos reservados.</div>
+<div>Built with <a href="https://observablehq.com/" target="_blank" rel="noopener noreferrer">Observable</a> on <a title="2024-07-18T21:09:15">Jul 18, 2024</a>.</div>
 </footer>
 </div>
