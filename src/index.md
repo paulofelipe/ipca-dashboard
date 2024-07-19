@@ -496,7 +496,7 @@ function plot_var_subitem(width, serie, selecao, n) {
           tip: {
             format: {
               x: d => number_locale.format(".2%")(d),
-              y: d => d.categoria
+              y: d => d
             }
           },
           sort: {y: "x", reverse: selecao == "aumento"},
@@ -642,12 +642,6 @@ function anim_line(index, scales, values, dimensions, context, next) {
 
   return el;
 }
-```
-
-```js
-```
-
-```js
 ```
 
 

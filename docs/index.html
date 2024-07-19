@@ -497,7 +497,7 @@ resize((width) => plot_heatmap(width, serie))
 ))
 }});
 
-define({id: "112e856b", inputs: ["Inputs","series","Generators","aq","ipca_subitem","Plot","number_locale","anim_vbar","anim_hbar"], outputs: ["input_serie_sub","serie_sub","plot_histograma","plot_var_subitem"], body: (Inputs,series,Generators,aq,ipca_subitem,Plot,number_locale,anim_vbar,anim_hbar) => {
+define({id: "c6375b45", inputs: ["Inputs","series","Generators","aq","ipca_subitem","Plot","number_locale","anim_vbar","anim_hbar"], outputs: ["input_serie_sub","serie_sub","plot_histograma","plot_var_subitem"], body: (Inputs,series,Generators,aq,ipca_subitem,Plot,number_locale,anim_vbar,anim_hbar) => {
 const input_serie_sub = Inputs.select(
   series, {
     label: "Série",
@@ -633,7 +633,7 @@ function plot_var_subitem(width, serie, selecao, n) {
           tip: {
             format: {
               x: d => number_locale.format(".2%")(d),
-              y: d => d.categoria
+              y: d => d
             }
           },
           sort: {y: "x", reverse: selecao == "aumento"},
@@ -787,14 +787,6 @@ function anim_line(index, scales, values, dimensions, context, next) {
 return {anim_hbar,anim_vbar,anim_heatmap,anim_line};
 }});
 
-define({id: "e3b0c442", body: () => {
-
-}});
-
-define({id: "e3b0c442-1", body: () => {
-
-}});
-
 </script>
 <div id="observablehq-center">
 <main id="observablehq-main" class="observablehq">
@@ -869,7 +861,7 @@ define({id: "e3b0c442-1", body: () => {
     <observablehq-loading></observablehq-loading><!--:44061b79:-->
   </div>
 </div>
-<div class="observablehq observablehq--block"><!--:112e856b:--></div>
+<div class="observablehq observablehq--block"><!--:c6375b45:--></div>
 <div class="card">
   <h2>Variação do IPCA por subitem</h2>
   <observablehq-loading></observablehq-loading><!--:5108297d:-->
@@ -889,8 +881,6 @@ define({id: "e3b0c442-1", body: () => {
   </div>
 </div>
 <div class="observablehq observablehq--block"><!--:fa2ae594:--></div>
-<div class="observablehq observablehq--block"><!--:e3b0c442:--></div>
-<div class="observablehq observablehq--block"><!--:e3b0c442-1:--></div>
 <style>
 
 :root {
@@ -961,6 +951,6 @@ define({id: "e3b0c442-1", body: () => {
 </style>
 </main>
 <footer id="observablehq-footer">
-<div>Built with <a href="https://observablehq.com/" target="_blank" rel="noopener noreferrer">Observable</a> on <a title="2024-07-18T21:29:14">Jul 18, 2024</a>.</div>
+<div>Built with <a href="https://observablehq.com/" target="_blank" rel="noopener noreferrer">Observable</a> on <a title="2024-07-18T22:07:36">Jul 18, 2024</a>.</div>
 </footer>
 </div>
