@@ -16,7 +16,14 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-
+      
+    - name: pt_BR.UTF-8 locale
+      run: |
+        sudo locale-gen pt_BR.UTF-8
+        sudo update-locale LANG=pt_BR.UTF-8
+    - name: date
+      run: date
+      
     - name: checkout repo content
       uses: actions/checkout@v4 
       
