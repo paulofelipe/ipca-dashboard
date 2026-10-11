@@ -7,6 +7,9 @@ import pandas as pd
 
 locale.setlocale(locale.LC_ALL, "pt_BR.UTF-8")
 
+# O SIDRA (atrás do Cloudflare) bloqueia o User-Agent padrão do urllib
+HEADERS = {"User-Agent": "python-requests/2.32"}
+
 lista_regioes = [
     "n1/all",
     "n7/1501",
@@ -26,6 +29,7 @@ def processa_ipca(regiao):
     ipca_detalhado = pd.read_csv(
         f"https://sidra.ibge.gov.br/geratabela?format=us.csv&name=tabela7060.csv&terr=N&rank=-&query=t/7060/{regiao}/v/all/p/all/c315/all/d/v63%202,v66%204,v69%202,v2265%202/l/,,c315%2Bp%2Bv%2Bt",
         skiprows=1,
+        storage_options=HEADERS,
     )
     filtro = ipca_detalhado["Mês"].str.contains(pat="[0-9]{4}", regex=True)
     filtro = filtro.fillna(False)
@@ -64,6 +68,7 @@ ipca = pd.concat(ipca)
 ipca_serie = pd.read_csv(
     "https://sidra.ibge.gov.br/geratabela?format=us.csv&name=tabela1737.csv&terr=N&rank=-&query=t/1737/n1/all/v/63,69,2265/p/all/d/v63%202,v69%202,v2265%202/l/,,t%2Bv%2Bp",
     skiprows=1,
+    storage_options=HEADERS,
 )
 filtro = ipca_serie["Mês"].str.contains(pat="[0-9]{4}", regex=True)
 filtro = filtro.fillna(False)
